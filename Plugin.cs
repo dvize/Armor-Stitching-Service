@@ -49,8 +49,8 @@ namespace armorMod
         internal void Awake()
         {
             ArmorServiceMode = Config.Bind("Armor Repair Settings", "Enable/Disable Mod", true, "Enables the Armor Repairing Options Below");
-            TimeDelayRepairInSec = Config.Bind("Armor Repair Settings", "Time Delay Repair in Sec", 10f, "How Long Before you were last hit that it repairs armor");
-            ArmorRepairRateOverTime = Config.Bind("Armor Repair Settings", "Armor Repair Rate", 1f, "How much durability per second is repaired");
+            TimeDelayRepairInSec = Config.Bind("Armor Repair Settings", "Time Delay Repair in Sec", 60f, "How Long Before you were last hit that it repairs armor");
+            ArmorRepairRateOverTime = Config.Bind("Armor Repair Settings", "Armor Repair Rate", 0.5f, "How much durability per second is repaired");
         }
         private void Update()
         {
