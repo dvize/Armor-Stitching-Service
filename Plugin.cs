@@ -29,11 +29,16 @@ namespace armorMod
         {
             get; set;
         }
+        private static ConfigEntry<float> MaxDurabilityDegradationRateOverTime
+        {
+            get; set;
+        }
 
         private AbstractGame game;
         private bool runOnceAlready = false;
         private bool newGame = true;
         private float newRepairRate;
+        private float newMaxDurabilityDrainRate;
         private ArmorComponent armor;
         private static float timeSinceLastHit = 0f;
 
@@ -51,6 +56,7 @@ namespace armorMod
             ArmorServiceMode = Config.Bind("Armor Repair Settings", "Enable/Disable Mod", true, "Enables the Armor Repairing Options Below");
             TimeDelayRepairInSec = Config.Bind("Armor Repair Settings", "Time Delay Repair in Sec", 60f, "How Long Before you were last hit that it repairs armor");
             ArmorRepairRateOverTime = Config.Bind("Armor Repair Settings", "Armor Repair Rate", 0.5f, "How much durability per second is repaired");
+            MaxDurabilityDegradationRateOverTime = Config.Bind("Armor Repair Settings", "Max Durability Drain Rate", 0.025f, "How much max durability per second of repairs is drained");
         }
         private void Update()
         {
@@ -85,6 +91,7 @@ namespace armorMod
                 //Logger.LogInfo($"Repairing Armor Block Reached Because TimeSinceLastHitReached: " + timeSinceLastHit);
                 //repair the armor divided by the time.unfixed rate
                 newRepairRate = ArmorRepairRateOverTime.Value * Time.deltaTime;
+                newMaxDurabilityDrainRate = MaxDurabilityDegradationRateOverTime.Value * Time.deltaTime;
 
                 foreach (EquipmentSlot slot in equipmentSlotDictionary.Keys.ToArray())
                 {
@@ -113,7 +120,8 @@ namespace armorMod
                             else
                             {
                                 armor.Repairable.Durability += newRepairRate;
-                                //Logger.LogInfo("ASS: Repairing " + item.LocalizedName() + " : " + armor.Repairable.Durability + "/" + armor.Repairable.MaxDurability);
+                                armor.Repairable.MaxDurability -= newMaxDurabilityDrainRate;
+                                Logger.LogInfo("ASS: Repairing " + item.LocalizedName() + " : " + armor.Repairable.Durability + "/" + armor.Repairable.MaxDurability);
                             }
                         }
 
