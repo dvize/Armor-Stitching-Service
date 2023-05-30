@@ -13,7 +13,7 @@ using UnityEngine;
 
 namespace armorMod
 {
-    [BepInPlugin("com.armorMod.ASS", "armorMod.ASS", "1.0.0")]
+    [BepInPlugin("com.armorMod.ASS", "armorMod.ASS", "1.1.0")]
 
     public class ASS : BaseUnityPlugin
     {
@@ -95,7 +95,7 @@ namespace armorMod
 
                 foreach (EquipmentSlot slot in equipmentSlotDictionary.Keys.ToArray())
                 {
-                    Logger.LogInfo("ASS: Checking EquipmentSlot: " +  slot);
+                    //Logger.LogInfo("ASS: Checking EquipmentSlot: " +  slot);
                     Slot tempSlot = getEquipSlot(slot);
 
                     if (tempSlot == null || tempSlot.ContainedItem == null)
@@ -121,7 +121,7 @@ namespace armorMod
                             {
                                 armor.Repairable.Durability += newRepairRate;
                                 armor.Repairable.MaxDurability -= newMaxDurabilityDrainRate;
-                                Logger.LogInfo("ASS: Repairing " + item.LocalizedName() + " : " + armor.Repairable.Durability + "/" + armor.Repairable.MaxDurability);
+                                //Logger.LogInfo("ASS: Repairing " + item.LocalizedName() + " : " + armor.Repairable.Durability + "/" + armor.Repairable.MaxDurability);
                             }
                         }
 
