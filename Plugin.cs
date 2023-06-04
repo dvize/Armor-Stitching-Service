@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
 using System.Threading.Tasks;
 using BepInEx;
 using BepInEx.Configuration;
@@ -21,10 +20,10 @@ namespace armorMod
         {
             get; set;
         }
-        private ConfigEntry<Boolean> LoseInsuranceOnRepair
+        /*private ConfigEntry<Boolean> LoseInsuranceOnRepair
         {
             get; set;
-        }
+        }*/
         private static ConfigEntry<float> TimeDelayRepairInSec
         {
             get; set;
@@ -45,8 +44,8 @@ namespace armorMod
         private float newMaxDurabilityDrainRate;
         private ArmorComponent armor;
         private static float timeSinceLastHit = 0f;
-        private static InsuranceCompanyClass insurance;
-        private static List<InsuredItemClass> insuranceList;
+        /*private static InsuranceCompanyClass insurance;
+        private static List<InsuredItemClass> insuranceList;*/
 
         private readonly Dictionary<EquipmentSlot, List<Item>> equipmentSlotDictionary = new Dictionary<EquipmentSlot, List<Item>>
         {
@@ -60,7 +59,7 @@ namespace armorMod
         internal void Awake()
         {
             ArmorServiceMode = Config.Bind("Armor Repair Settings", "Enable/Disable Mod", true, "Enables the Armor Repairing Options Below");
-            LoseInsuranceOnRepair = Config.Bind("Armor Repair Settings", "Lose Insurance On Repair", true, "If Enabled, you will lose insurance on whenever the armor is repaired in-raid");
+            /*LoseInsuranceOnRepair = Config.Bind("Armor Repair Settings", "Lose Insurance On Repair", true, "If Enabled, you will lose insurance on whenever the armor is repaired in-raid");*/
             TimeDelayRepairInSec = Config.Bind("Armor Repair Settings", "Time Delay Repair in Sec", 60f, "How Long Before you were last hit that it repairs armor");
             ArmorRepairRateOverTime = Config.Bind("Armor Repair Settings", "Armor Repair Rate", 0.5f, "How much durability per second is repaired");
             MaxDurabilityDegradationRateOverTime = Config.Bind("Armor Repair Settings", "Max Durability Drain Rate", 0.025f, "How much max durability per second of repairs is drained");
@@ -82,9 +81,9 @@ namespace armorMod
                         player.BeingHitAction += Player_BeingHitAction;
                         player.OnPlayerDeadOrUnspawn += Player_OnPlayerDeadOrUnspawn;
                         runOnceAlready = true;
-
+/*
                         //get insurance singleton
-                        insurance = Singleton<InsuranceCompanyClass>.Instance;
+                        insurance = Singleton<InsuranceCompanyClass>.Instance;*/
                     }
 
                     RepairArmor();
@@ -126,7 +125,7 @@ namespace armorMod
                             {
                                 armor.Repairable.Durability = armor.Repairable.MaxDurability;
 
-                                //check if insuredItems class contains the item 
+                                /*//check if insuredItems class contains the item 
                                 if (insurance != null && LoseInsuranceOnRepair.Value)
                                 {
                                     // use accesstools to get private List<InsuredItemClass> list_0;
@@ -140,7 +139,7 @@ namespace armorMod
                                         insuranceList.Remove(x);
                                     }
                                     
-                                }
+                                }*/
 
                                 //Logger.LogInfo("ASS: Setting MaxDurability for " + item.LocalizedName());
                             }
@@ -150,7 +149,7 @@ namespace armorMod
                                 armor.Repairable.MaxDurability -= newMaxDurabilityDrainRate;
 
                                 //check if insuredItems class contains the item 
-                                if (insurance != null && LoseInsuranceOnRepair.Value)
+                                /*if (insurance != null && LoseInsuranceOnRepair.Value)
                                 {
                                     // use accesstools to get private List<InsuredItemClass> list_0;
                                     insuranceList = (List<InsuredItemClass>)AccessTools.Field(typeof(InsuranceCompanyClass), "list_0").GetValue(insurance);
@@ -163,7 +162,7 @@ namespace armorMod
                                         insuranceList.Remove(x);
                                     }
 
-                                }
+                                }*/
 
                                 //Logger.LogInfo("ASS: Repairing " + item.LocalizedName() + " : " + armor.Repairable.Durability + "/" + armor.Repairable.MaxDurability);
                             }
