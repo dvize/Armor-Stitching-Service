@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace armorMod
 {
-    [BepInPlugin("com.armorMod.ASS", "armorMod.ASS", "1.1.0")]
+    [BepInPlugin("com.armorMod.ASS", "armorMod.ASS", "1.2.0")]
 
     public class ASS : BaseUnityPlugin
     {
@@ -36,6 +36,10 @@ namespace armorMod
         {
             get; set;
         }
+        private static ConfigEntry<float> MaxDurabilityCap
+        {
+            get; set;
+        }
 
         private AbstractGame game;
         private bool runOnceAlready = false;
@@ -43,6 +47,7 @@ namespace armorMod
         private float newRepairRate;
         private float newMaxDurabilityDrainRate;
         private ArmorComponent armor;
+        private float currentArmorDurabilityPercentage;
         private static float timeSinceLastHit = 0f;
         /*private static InsuranceCompanyClass insurance;
         private static List<InsuredItemClass> insuranceList;*/
@@ -63,6 +68,7 @@ namespace armorMod
             TimeDelayRepairInSec = Config.Bind("Armor Repair Settings", "Time Delay Repair in Sec", 60f, "How Long Before you were last hit that it repairs armor");
             ArmorRepairRateOverTime = Config.Bind("Armor Repair Settings", "Armor Repair Rate", 0.5f, "How much durability per second is repaired");
             MaxDurabilityDegradationRateOverTime = Config.Bind("Armor Repair Settings", "Max Durability Drain Rate", 0.025f, "How much max durability per second of repairs is drained");
+            MaxDurabilityCap = Config.Bind("Armor Repair Settings", "Max Durability Cap", 100f, "Maximum durability percentage to which armor will be able to repair to. For example, setting to 80 would repair your armor to maximum of 80% of it's max durability");
         }
         private void Update()
         {
@@ -117,8 +123,10 @@ namespace armorMod
                         //get the armorcomponent of each item in items and check to see if all item componenets (even helmet side ears) are max durability
                         armor = item.GetItemComponent<ArmorComponent>();
 
+                        currentArmorDurabilityPercentage = armor.Repairable.Durability / armor.Repairable.MaxDurability * 100;
+
                         //check if it needs repair for the current item in loop of all items for the slot
-                        if (armor != null && (armor.Repairable.Durability < armor.Repairable.MaxDurability))
+                        if (armor != null && (currentArmorDurabilityPercentage < MaxDurabilityCap.Value) && (armor.Repairable.Durability < armor.Repairable.MaxDurability))
                         {
                             //increase armor durability by newRepairRate until maximum then set as maximum durability
                             if (armor.Repairable.Durability + newRepairRate >= armor.Repairable.MaxDurability)
