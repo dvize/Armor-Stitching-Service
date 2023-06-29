@@ -120,15 +120,13 @@ namespace armorMod
 
                         item.TryGetItemComponent<FaceShieldComponent>(out faceShield);
 
-                        if (faceShield == null)
+                        if (faceShield != null)
                         {
-                            continue;
-                        }
-
-                        if (faceShield.Hits > 0 && AssPlugin.fixFaceShieldBullets.Value)
-                        {
-                            faceShield.Hits = 0;
-                            faceShield.HitsChanged.Invoke();
+                            if (faceShield.Hits > 0 && AssPlugin.fixFaceShieldBullets.Value)
+                            {
+                                faceShield.Hits = 0;
+                                faceShield.HitsChanged.Invoke();
+                            }
                         }
                     }
                 
