@@ -59,11 +59,6 @@ namespace armorMod
 
         internal static ConfigEntry<Boolean> fixFaceShieldBullets
         {
-           get; set;
-        }
-
-        internal static ConfigEntry<Boolean> faceShieldNoMask
-        {
             get; set;
         }
 
@@ -96,9 +91,6 @@ namespace armorMod
 
             fixFaceShieldBullets = Config.Bind("Face Shield", "Fix Bullet Cracks", true, new ConfigDescription("Enables Repairing Bullet Cracks in FaceShield",
                 null, new ConfigurationManagerAttributes { IsAdvanced = false, Order = 2 }));
-
-            faceShieldNoMask = Config.Bind("Face Shield", "Change Limited View to Full View", true, new ConfigDescription("Changes the Helmet Vision Mask if its blocking",
-                null, new ConfigurationManagerAttributes { IsAdvanced = false, Order = 1 }));
 
             new NewGamePatch().Enable();
         }

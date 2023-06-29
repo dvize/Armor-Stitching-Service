@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using BepInEx.Logging;
 using Comfort.Common;
 using EFT;
-using EFT.Interactive;
 using EFT.InventoryLogic;
 using HarmonyLib;
 using UnityEngine;
@@ -85,47 +82,9 @@ namespace armorMod
             {
                 RepairWeapon();
             }
-            
-            if(AssPlugin.faceShieldNoMask.Value || AssPlugin.fixFaceShieldBullets.Value)
-            {
-                faceShieldCheck();
-            }
+
         }
 
-        private void faceShieldCheck()
-        {
-            var slot = EquipmentSlot.Headwear;
-
-            Slot tempSlot = getEquipSlot(slot);
-
-            if (tempSlot == null || tempSlot.ContainedItem == null)
-            {
-                return;
-            }
-
-            foreach (var item in tempSlot.ContainedItem.GetAllItems())
-            {
-                item.TryGetItemComponent<FaceShieldComponent>(out faceShield);
-
-                //if has faceshield repair bullet damage hits
-                if (faceShield != null)
-                {
-                    //Logger.LogDebug("Item has a faceshield component, setting hits to 0");
-
-                    //use access tools to set property of faceshield.mask to no mask
-                    if (faceShield.Mask != FaceShieldComponent.EMask.NoMask && AssPlugin.faceShieldNoMask.Value)
-                    {
-                        AccessTools.Property(faceShield.GetType(), "Mask").SetValue(faceShield, FaceShieldComponent.EMask.NoMask);
-                    }
-
-                    if (faceShield.Hits > 0 && AssPlugin.fixFaceShieldBullets.Value && timeSinceLastHit >= AssPlugin.TimeDelayRepairInSec.Value)
-                    {
-                        faceShield.Hits = 0;
-                        faceShield.HitsChanged.Invoke();
-                    }
-                }
-            }
-        }
 
         private void RepairArmor()
         {
@@ -156,6 +115,24 @@ namespace armorMod
                         continue;
                     }
 
+                    if (slot == EquipmentSlot.Headwear)
+                    {
+
+                        item.TryGetItemComponent<FaceShieldComponent>(out faceShield);
+
+                        if (faceShield == null)
+                        {
+                            continue;
+                        }
+
+                        if (faceShield.Hits > 0 && AssPlugin.fixFaceShieldBullets.Value)
+                        {
+                            faceShield.Hits = 0;
+                            faceShield.HitsChanged.Invoke();
+                        }
+                    }
+                
+                
                     maxRepairableDurabilityBasedOnCap = ((AssPlugin.MaxDurabilityCap.Value / 100) * armor.MaxDurability);
 
                     //check if it needs repair for the current item in loop of all items for the slot
