@@ -7,7 +7,7 @@ using EFT;
 
 namespace armorMod
 {
-    [BepInPlugin("com.dvize.ASS", "dvize.ASS", "1.3.0")]
+    [BepInPlugin("com.dvize.ASS", "dvize.ASS", "1.3.1")]
 
     public class AssPlugin : BaseUnityPlugin
     {
@@ -19,10 +19,6 @@ namespace armorMod
         {
             get; set;
         }
-        /*private ConfigEntry<Boolean> LoseInsuranceOnRepair
-        {
-            get; set;
-        }*/
         internal static ConfigEntry<float> TimeDelayRepairInSec
         {
             get; set;
