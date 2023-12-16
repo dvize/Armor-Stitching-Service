@@ -24,6 +24,7 @@ namespace armorMod
         private static float maxRepairableDurabilityBasedOnCap;
         private static float maxWeaponRepairableDurabilityBasedOnCap;
         private static float timeSinceLastHit = 0f;
+        private static Slot tempSlot;
 
         private static Dictionary<EquipmentSlot, List<Item>> equipmentSlotDictionary = new Dictionary<EquipmentSlot, List<Item>>
         {
@@ -56,6 +57,7 @@ namespace armorMod
         {
             player = Singleton<GameWorld>.Instance.MainPlayer;
             player.BeingHitAction += Player_BeingHitAction;
+            timeSinceLastHit = 0;
         }
         internal static void Enable()
         {
@@ -85,7 +87,6 @@ namespace armorMod
 
         }
 
-
         private void RepairArmor()
         {
             newRepairRate = AssPlugin.ArmorRepairRateOverTime.Value * Time.deltaTime;
@@ -93,7 +94,7 @@ namespace armorMod
 
             foreach (EquipmentSlot slot in equipmentSlotDictionary.Keys.ToArray())
             {
-                Slot tempSlot = getEquipSlot(slot);
+                tempSlot = getEquipSlot(slot);
 
                 if (tempSlot == null || tempSlot.ContainedItem == null)
                 {
@@ -161,7 +162,7 @@ namespace armorMod
 
             foreach (EquipmentSlot slot in weaponSlotDictionary.Keys.ToArray())
             {
-                Slot tempSlot = getEquipSlot(slot);
+                tempSlot = getEquipSlot(slot);
 
                 if (tempSlot == null || tempSlot.ContainedItem == null)
                 {
