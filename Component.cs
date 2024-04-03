@@ -7,12 +7,15 @@ using EFT.InventoryLogic;
 using HarmonyLib;
 using UnityEngine;
 
+#pragma warning disable IDE0044
+
 namespace armorMod
 {
     internal class AssComponent : MonoBehaviour
     {
         private static GameWorld gameWorld = new GameWorld();
         private static Player player = new Player();
+        private static InventoryControllerClass _cachedInventoryController;
 
         private static float newRepairRate;
         private static float newMaxDurabilityDrainRate;
@@ -58,6 +61,7 @@ namespace armorMod
             player = Singleton<GameWorld>.Instance.MainPlayer;
             player.BeingHitAction += Player_BeingHitAction;
             timeSinceLastHit = 0;
+            _cachedInventoryController = (InventoryControllerClass)AccessTools.Field(typeof(Player), "_inventoryController").GetValue(player);
         }
         internal static void Enable()
         {
@@ -72,133 +76,54 @@ namespace armorMod
 
         private void Update()
         {
-
             timeSinceLastHit += Time.deltaTime;
 
-            if ((timeSinceLastHit >= AssPlugin.TimeDelayRepairInSec.Value) && AssPlugin.ArmorServiceMode.Value)
+            if (AssPlugin.ArmorServiceMode.Value && timeSinceLastHit >= AssPlugin.TimeDelayRepairInSec.Value)
             {
-                RepairArmor();
+                var armorItems = equipmentSlotDictionary.Values.SelectMany(slot => slot).SelectMany(slot => slot.GetAllItems());
+                RepairItems(armorItems, isWeapon: false);
             }
 
-            if ((timeSinceLastHit >= AssPlugin.weaponTimeDelayRepairInSec.Value) && AssPlugin.WeaponServiceMode.Value)
+            if (AssPlugin.WeaponServiceMode.Value && timeSinceLastHit >= AssPlugin.weaponTimeDelayRepairInSec.Value)
             {
-                RepairWeapon();
+                var weaponItems = weaponSlotDictionary.Values.SelectMany(slot => slot).SelectMany(slot => slot.GetAllItems());
+                RepairItems(weaponItems, isWeapon: true);
             }
-
         }
 
-        private void RepairArmor()
+        private void RepairItems(IEnumerable<Item> items, bool isWeapon)
         {
-            newRepairRate = AssPlugin.ArmorRepairRateOverTime.Value * Time.deltaTime;
-            newMaxDurabilityDrainRate = AssPlugin.MaxDurabilityDegradationRateOverTime.Value * Time.deltaTime;
+            float repairRate = isWeapon ? AssPlugin.weaponRepairRateOverTime.Value * Time.deltaTime : AssPlugin.ArmorRepairRateOverTime.Value * Time.deltaTime;
+            float maxDurabilityDrainRate = isWeapon ? AssPlugin.weaponMaxDurabilityDegradationRateOverTime.Value * Time.deltaTime : AssPlugin.MaxDurabilityDegradationRateOverTime.Value * Time.deltaTime;
 
-            foreach (EquipmentSlot slot in equipmentSlotDictionary.Keys.ToArray())
+            foreach (var item in items)
             {
-                tempSlot = getEquipSlot(slot);
-
-                if (tempSlot == null || tempSlot.ContainedItem == null)
+                if (!isWeapon)
                 {
-                    continue;
-                }
-
-                foreach (var item in tempSlot.ContainedItem.GetAllItems())
-                {
-                    //get the armorcomponent of each item in items and check to see if all item componenets (even helmet side ears) are max durability
-
-                    //Logger.LogDebug("Examining the item: " + item.Name.Localized() + " in slot: " + slot.ToString() + " for repairable component");
-
-                    item.TryGetItemComponent<RepairableComponent>(out armor);
-
-
-                    if (armor == null)
+                    // Specifically for face shields, if the item has a FaceShieldComponent.
+                    if (item.TryGetItemComponent<FaceShieldComponent>(out var faceShield) && AssPlugin.fixFaceShieldBullets.Value)
                     {
-                        //Logger.LogDebug("Item: " + item.Name.Localized() + " in slot: " + slot.ToString() + " does not have a repairable component");
-                        continue;
-                    }
-
-                    if (slot == EquipmentSlot.Headwear)
-                    {
-
-                        item.TryGetItemComponent<FaceShieldComponent>(out faceShield);
-
-                        if (faceShield != null)
+                        // Check if face shield has been hit and reset hits if so.
+                        if (faceShield.Hits > 0)
                         {
-                            if (faceShield.Hits > 0 && AssPlugin.fixFaceShieldBullets.Value)
-                            {
-                                faceShield.Hits = 0;
-                                faceShield.HitsChanged.Invoke();
-                            }
-                        }
-                    }
-                
-                
-                    maxRepairableDurabilityBasedOnCap = ((AssPlugin.MaxDurabilityCap.Value / 100) * armor.MaxDurability);
-
-                    //check if it needs repair for the current item in loop of all items for the slot
-                    if (armor.Durability < maxRepairableDurabilityBasedOnCap)
-                    {
-                        //increase armor durability by newRepairRate until maximum then set as maximum durability
-                        if (armor.Durability + newRepairRate >= armor.MaxDurability)
-                        {
-                            armor.Durability = armor.MaxDurability;
-                        }
-                        else
-                        {
-                            armor.Durability += newRepairRate;
-                            armor.MaxDurability -= newMaxDurabilityDrainRate;
+                            faceShield.Hits = 0;
+                            // Assuming faceShield has a method or event to notify changes. If not, adjust as necessary.
+                            faceShield.HitsChanged?.Invoke();
                         }
                     }
                 }
 
-            }
-
-        }
-
-        private void RepairWeapon()
-        {
-
-            newWeaponRepairRate = AssPlugin.weaponRepairRateOverTime.Value * Time.deltaTime;
-            newWeaponMaxDurabilityDrainRate = AssPlugin.weaponMaxDurabilityDegradationRateOverTime.Value * Time.deltaTime;
-
-            foreach (EquipmentSlot slot in weaponSlotDictionary.Keys.ToArray())
-            {
-                tempSlot = getEquipSlot(slot);
-
-                if (tempSlot == null || tempSlot.ContainedItem == null)
+                if (item.TryGetItemComponent<RepairableComponent>(out var repairable))
                 {
-                    continue;
-                }
+                    float maxRepairableDurabilityBasedOnCap = ((isWeapon ? AssPlugin.weaponMaxDurabilityCap.Value : AssPlugin.MaxDurabilityCap.Value) / 100) * repairable.MaxDurability;
 
-                foreach (var item in tempSlot.ContainedItem.GetAllItems())
-                {
-                    item.TryGetItemComponent<RepairableComponent>(out weapon);
-
-                    if (weapon == null)
+                    if (repairable.Durability < maxRepairableDurabilityBasedOnCap)
                     {
-                        //Logger.LogDebug("Item: " + item.Name.Localized() + " in slot: " + slot.ToString() + " does not have a repairable component");
-                        continue;
-                    }
-
-                    //Logger.LogDebug("Item: " + item.Name.Localized() + " in slot: " + slot.ToString() + " has a repairable component");
-                    maxWeaponRepairableDurabilityBasedOnCap = ((AssPlugin.weaponMaxDurabilityCap.Value / 100) * weapon.MaxDurability);
-
-                    //check if it needs repair for the current item in loop of all items for the slot
-                    if (weapon.Durability < maxWeaponRepairableDurabilityBasedOnCap)
-                    {
-                        //increase weapon durability by newWeaponRepairRate until maximum then set as maximum durability
-                        if (weapon.Durability + newWeaponRepairRate >= weapon.MaxDurability)
-                        {
-                            weapon.Durability = weapon.MaxDurability;
-                        }
-                        else
-                        {
-                            weapon.Durability += newWeaponRepairRate;
-                            weapon.MaxDurability -= newWeaponMaxDurabilityDrainRate;
-                        }
+                        repairable.Durability = Mathf.Min(repairable.Durability + repairRate, repairable.MaxDurability);
+                        repairable.MaxDurability = Mathf.Max(repairable.MaxDurability - maxDurabilityDrainRate, 0);
                     }
                 }
             }
-
         }
         private void Player_BeingHitAction(DamageInfo dmgInfo, EBodyPart bodyPart, float hitEffectId) => timeSinceLastHit = 0f;
 
@@ -208,21 +133,11 @@ namespace armorMod
         private static InventoryControllerClass inventoryController;
         private Slot getEquipSlot(EquipmentSlot slot)
         {
-            // Use AccessTools to get the protected field _inventoryController
-            inventoryController = (InventoryControllerClass)AccessTools.Field(typeof(Player), "_inventoryController").GetValue(player);
-
-            if (inventoryController != null)
+            if (_cachedInventoryController != null)
             {
-                slotContents = inventoryController.Inventory.Equipment.GetSlot(slot);
-
-                if (slotContents.ContainedItem == null)
-                {
-                    return null;
-                }
-
-                return slotContents;
+                var slotContents = _cachedInventoryController.Inventory.Equipment.GetSlot(slot);
+                return slotContents.ContainedItem == null ? null : slotContents;
             }
-
             return null;
         }
 
