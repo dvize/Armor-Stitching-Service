@@ -29,6 +29,8 @@ namespace armorMod
         private static float timeSinceLastHit = 0f;
         private static Slot tempSlot;
 
+        private int frameCount = 0;
+
         private static Dictionary<EquipmentSlot, List<Item>> equipmentSlotDictionary = new Dictionary<EquipmentSlot, List<Item>>
         {
             { EquipmentSlot.ArmorVest, new List<Item>() },
@@ -76,38 +78,46 @@ namespace armorMod
 
         private void Update()
         {
-            timeSinceLastHit += Time.deltaTime;
+            frameCount++;
 
-            if (AssPlugin.ArmorServiceMode.Value && timeSinceLastHit >= AssPlugin.TimeDelayRepairInSec.Value)
+            // Perform actions every 60 frames
+            if (frameCount >= 60)
             {
-                var armorItems = equipmentSlotDictionary.Values.SelectMany(slot => slot).SelectMany(slot => slot.GetAllItems());
-                RepairItems(armorItems, isWeapon: false);
-            }
+                frameCount = 0; // Reset frame count
 
-            if (AssPlugin.WeaponServiceMode.Value && timeSinceLastHit >= AssPlugin.weaponTimeDelayRepairInSec.Value)
-            {
-                var weaponItems = weaponSlotDictionary.Values.SelectMany(slot => slot).SelectMany(slot => slot.GetAllItems());
-                RepairItems(weaponItems, isWeapon: true);
+                // Assuming Time.deltaTime accumulates over 60 frames for calculations
+                float accumulatedDeltaTime = Time.deltaTime * 60;
+
+                timeSinceLastHit += accumulatedDeltaTime;
+
+                if (AssPlugin.ArmorServiceMode.Value && timeSinceLastHit >= AssPlugin.TimeDelayRepairInSec.Value)
+                {
+                    var armorItems = equipmentSlotDictionary.Values.SelectMany(slot => slot).SelectMany(slot => slot.GetAllItems());
+                    RepairItems(armorItems, isWeapon: false, accumulatedDeltaTime);
+                }
+
+                if (AssPlugin.WeaponServiceMode.Value && timeSinceLastHit >= AssPlugin.weaponTimeDelayRepairInSec.Value)
+                {
+                    var weaponItems = weaponSlotDictionary.Values.SelectMany(slot => slot).SelectMany(slot => slot.GetAllItems());
+                    RepairItems(weaponItems, isWeapon: true, accumulatedDeltaTime);
+                }
             }
         }
 
-        private void RepairItems(IEnumerable<Item> items, bool isWeapon)
+        private void RepairItems(IEnumerable<Item> items, bool isWeapon, float accumulatedDeltaTime)
         {
-            float repairRate = isWeapon ? AssPlugin.weaponRepairRateOverTime.Value * Time.deltaTime : AssPlugin.ArmorRepairRateOverTime.Value * Time.deltaTime;
-            float maxDurabilityDrainRate = isWeapon ? AssPlugin.weaponMaxDurabilityDegradationRateOverTime.Value * Time.deltaTime : AssPlugin.MaxDurabilityDegradationRateOverTime.Value * Time.deltaTime;
+            float repairRate = isWeapon ? AssPlugin.weaponRepairRateOverTime.Value * accumulatedDeltaTime : AssPlugin.ArmorRepairRateOverTime.Value * accumulatedDeltaTime;
+            float maxDurabilityDrainRate = isWeapon ? AssPlugin.weaponMaxDurabilityDegradationRateOverTime.Value * accumulatedDeltaTime : AssPlugin.MaxDurabilityDegradationRateOverTime.Value * accumulatedDeltaTime;
 
             foreach (var item in items)
             {
                 if (!isWeapon)
                 {
-                    // Specifically for face shields, if the item has a FaceShieldComponent.
                     if (item.TryGetItemComponent<FaceShieldComponent>(out var faceShield) && AssPlugin.fixFaceShieldBullets.Value)
                     {
-                        // Check if face shield has been hit and reset hits if so.
                         if (faceShield.Hits > 0)
                         {
                             faceShield.Hits = 0;
-                            // Assuming faceShield has a method or event to notify changes. If not, adjust as necessary.
                             faceShield.HitsChanged?.Invoke();
                         }
                     }
