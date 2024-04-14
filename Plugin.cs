@@ -8,7 +8,6 @@ using EFT;
 namespace armorMod
 {
     [BepInPlugin("com.dvize.ASS", "dvize.ASS", "1.6.0")]
-    //[BepInDependency("com.spt-aki.core", "3.7.4")]
     public class AssPlugin : BaseUnityPlugin
     {
         internal static ConfigEntry<Boolean> ArmorServiceMode
@@ -95,7 +94,7 @@ namespace armorMod
             protected override MethodBase GetTargetMethod() => typeof(GameWorld).GetMethod(nameof(GameWorld.OnGameStarted));
 
             [PatchPrefix]
-            private static void PatchPrefix()
+            internal static void PatchPrefix()
             {
                 AssComponent.Enable();
             }

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using BepInEx.Logging;
 using Comfort.Common;
 using EFT;
@@ -7,151 +6,121 @@ using EFT.InventoryLogic;
 using HarmonyLib;
 using UnityEngine;
 
-#pragma warning disable IDE0044
-
 namespace armorMod
 {
     internal class AssComponent : MonoBehaviour
     {
-        private static GameWorld gameWorld = new GameWorld();
-        private static Player player = new Player();
-        private static InventoryControllerClass _cachedInventoryController;
+        internal static ManualLogSource Logger;
+        internal static GameWorld gameWorld;
+        internal static Player player;
+        internal static float timeSinceLastHit = 0f;
+        internal static float timeSinceLastRepair = 0f; // New variable to control repair frequency
+        internal static Slot slotContents;
+        internal static InventoryControllerClass inventoryController;
 
-        private static float newRepairRate;
-        private static float newMaxDurabilityDrainRate;
-        private static float newWeaponRepairRate;
-        private static float newWeaponMaxDurabilityDrainRate;
-        private static RepairableComponent armor;
-        private static FaceShieldComponent faceShield;
-        private static RepairableComponent weapon;
-        private static float maxRepairableDurabilityBasedOnCap;
-        private static float maxWeaponRepairableDurabilityBasedOnCap;
-        private static float timeSinceLastHit = 0f;
-        private static Slot tempSlot;
-
-        private int frameCount = 0;
-
-        private static Dictionary<EquipmentSlot, List<Item>> equipmentSlotDictionary = new Dictionary<EquipmentSlot, List<Item>>
+        internal static List<EquipmentSlot> equipmentSlotDictionary = new List<EquipmentSlot>
         {
-            { EquipmentSlot.ArmorVest, new List<Item>() },
-            { EquipmentSlot.TacticalVest, new List<Item>() },
-            { EquipmentSlot.Eyewear, new List<Item>() },
-            { EquipmentSlot.FaceCover, new List<Item>() },
-            { EquipmentSlot.Headwear, new List<Item>() },
+            { EquipmentSlot.ArmorVest},
+            { EquipmentSlot.TacticalVest},
+            { EquipmentSlot.Eyewear},
+            { EquipmentSlot.FaceCover},
+            { EquipmentSlot.Headwear},
         };
 
-        private static Dictionary<EquipmentSlot, List<Item>> weaponSlotDictionary = new Dictionary<EquipmentSlot, List<Item>>
+        internal static List<EquipmentSlot> weaponSlotDictionary = new List<EquipmentSlot>
         {
-            { EquipmentSlot.FirstPrimaryWeapon, new List<Item>() },
-            { EquipmentSlot.SecondPrimaryWeapon, new List<Item>() },
-            { EquipmentSlot.Holster, new List<Item>() },
+            { EquipmentSlot.FirstPrimaryWeapon },
+            { EquipmentSlot.SecondPrimaryWeapon },
+            { EquipmentSlot.Holster },
         };
-        protected static ManualLogSource Logger
-        {
-            get; private set;
-        }
-        private AssComponent()
+
+        private void Awake()
         {
             if (Logger == null)
-            {
                 Logger = BepInEx.Logging.Logger.CreateLogSource(nameof(AssComponent));
-            }
         }
 
         private void Start()
         {
-            player = Singleton<GameWorld>.Instance.MainPlayer;
-            player.BeingHitAction += Player_BeingHitAction;
-            timeSinceLastHit = 0;
-            _cachedInventoryController = (InventoryControllerClass)AccessTools.Field(typeof(Player), "_inventoryController").GetValue(player);
+            player = gameWorld.MainPlayer;
+            inventoryController = (InventoryControllerClass)AccessTools.Field(typeof(Player), "_inventoryController").GetValue(player);
+            player.BeingHitAction += ResetTimeSinceLastHit;
+            Logger.LogDebug("AssComponent enabled successfully.");
         }
+
+        private void Update()
+        {
+            timeSinceLastHit += Time.deltaTime;
+            timeSinceLastRepair += Time.deltaTime;
+
+            if (timeSinceLastRepair >= 1.0f)
+            {
+                if (timeSinceLastHit >= AssPlugin.TimeDelayRepairInSec.Value && AssPlugin.ArmorServiceMode.Value)
+                {
+                    RepairItems(equipmentSlotDictionary, true);
+                }
+
+                if (timeSinceLastHit >= AssPlugin.weaponTimeDelayRepairInSec.Value && AssPlugin.WeaponServiceMode.Value)
+                {
+                    RepairItems(weaponSlotDictionary, false);
+                }
+
+                timeSinceLastRepair = 0f; 
+            }
+        }
+
+        private static void RepairItems(List<EquipmentSlot> slots, bool isArmor)
+        {
+            float repairRate = isArmor ? AssPlugin.ArmorRepairRateOverTime.Value : AssPlugin.weaponRepairRateOverTime.Value;
+            float maxDurabilityDrainRate = isArmor ? AssPlugin.MaxDurabilityDegradationRateOverTime.Value : AssPlugin.weaponMaxDurabilityDegradationRateOverTime.Value;
+
+            foreach (var slot in slots)
+            {
+                var slotContents = GetEquipSlot(slot);
+                if (slotContents?.ContainedItem == null) continue;
+
+                foreach (Item item in slotContents.ContainedItem.GetAllItems())
+                {
+                    if (item.TryGetItemComponent<RepairableComponent>(out var component))
+                    {
+                        float maxCap = isArmor ? AssPlugin.MaxDurabilityCap.Value : AssPlugin.weaponMaxDurabilityCap.Value;
+                        float maxRepairableDurability = (maxCap / 100) * component.MaxDurability;
+
+                        if (component.Durability < maxRepairableDurability)
+                        {
+#if DEBUG
+                            Logger.LogWarning($"Repairing {item.Name.Localized()} in {slot} with {component.Durability} / {component.MaxDurability} durability");
+#endif
+                            component.Durability = Mathf.Min(component.Durability + repairRate, component.MaxDurability);
+                            component.MaxDurability = Mathf.Max(component.MaxDurability - maxDurabilityDrainRate, 0);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void ResetTimeSinceLastHit(DamageInfo dmgInfo, EBodyPart bodyPart, float hitEffectId)
+        {
+            timeSinceLastHit = 0f;
+        }
+
+        private static Slot GetEquipSlot(EquipmentSlot slot)
+        {
+            if (inventoryController != null)
+            {
+                slotContents = inventoryController.Inventory.Equipment.GetSlot(slot);
+                return slotContents.ContainedItem == null ? null : slotContents;
+            }
+            return null;
+        }
+
         internal static void Enable()
         {
             if (Singleton<IBotGame>.Instantiated)
             {
                 gameWorld = Singleton<GameWorld>.Instance;
                 gameWorld.GetOrAddComponent<AssComponent>();
-
-                Logger.LogDebug("AssComponent enabled");
             }
         }
-
-        private void Update()
-        {
-            frameCount++;
-
-            // Perform actions every 60 frames
-            if (frameCount >= 60)
-            {
-                frameCount = 0; // Reset frame count
-
-                // Assuming Time.deltaTime accumulates over 60 frames for calculations
-                float accumulatedDeltaTime = Time.deltaTime * 60;
-
-                timeSinceLastHit += accumulatedDeltaTime;
-
-                if (AssPlugin.ArmorServiceMode.Value && timeSinceLastHit >= AssPlugin.TimeDelayRepairInSec.Value)
-                {
-                    var armorItems = equipmentSlotDictionary.Values.SelectMany(slot => slot).SelectMany(slot => slot.GetAllItems());
-                    RepairItems(armorItems, isWeapon: false, accumulatedDeltaTime);
-                }
-
-                if (AssPlugin.WeaponServiceMode.Value && timeSinceLastHit >= AssPlugin.weaponTimeDelayRepairInSec.Value)
-                {
-                    var weaponItems = weaponSlotDictionary.Values.SelectMany(slot => slot).SelectMany(slot => slot.GetAllItems());
-                    RepairItems(weaponItems, isWeapon: true, accumulatedDeltaTime);
-                }
-            }
-        }
-
-        private void RepairItems(IEnumerable<Item> items, bool isWeapon, float accumulatedDeltaTime)
-        {
-            float repairRate = isWeapon ? AssPlugin.weaponRepairRateOverTime.Value * accumulatedDeltaTime : AssPlugin.ArmorRepairRateOverTime.Value * accumulatedDeltaTime;
-            float maxDurabilityDrainRate = isWeapon ? AssPlugin.weaponMaxDurabilityDegradationRateOverTime.Value * accumulatedDeltaTime : AssPlugin.MaxDurabilityDegradationRateOverTime.Value * accumulatedDeltaTime;
-
-            foreach (var item in items)
-            {
-                if (!isWeapon)
-                {
-                    if (item.TryGetItemComponent<FaceShieldComponent>(out var faceShield) && AssPlugin.fixFaceShieldBullets.Value)
-                    {
-                        if (faceShield.Hits > 0)
-                        {
-                            faceShield.Hits = 0;
-                            faceShield.HitsChanged?.Invoke();
-                        }
-                    }
-                }
-
-                if (item.TryGetItemComponent<RepairableComponent>(out var repairable))
-                {
-                    float maxRepairableDurabilityBasedOnCap = ((isWeapon ? AssPlugin.weaponMaxDurabilityCap.Value : AssPlugin.MaxDurabilityCap.Value) / 100) * repairable.MaxDurability;
-
-                    if (repairable.Durability < maxRepairableDurabilityBasedOnCap)
-                    {
-                        repairable.Durability = Mathf.Min(repairable.Durability + repairRate, repairable.MaxDurability);
-                        repairable.MaxDurability = Mathf.Max(repairable.MaxDurability - maxDurabilityDrainRate, 0);
-                    }
-                }
-            }
-        }
-        private void Player_BeingHitAction(DamageInfo dmgInfo, EBodyPart bodyPart, float hitEffectId) => timeSinceLastHit = 0f;
-
-
-
-        private static Slot slotContents;
-        private static InventoryControllerClass inventoryController;
-        private Slot getEquipSlot(EquipmentSlot slot)
-        {
-            if (_cachedInventoryController != null)
-            {
-                var slotContents = _cachedInventoryController.Inventory.Equipment.GetSlot(slot);
-                return slotContents.ContainedItem == null ? null : slotContents;
-            }
-            return null;
-        }
-
-
     }
 }
-
