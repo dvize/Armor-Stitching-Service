@@ -81,6 +81,20 @@ namespace armorMod
 
                 foreach (Item item in slotContents.ContainedItem.GetAllItems())
                 {
+                    if (isArmor)
+                    {
+                        // Specifically for face shields, if the item has a FaceShieldComponent.
+                        if (item.TryGetItemComponent<FaceShieldComponent>(out var faceShield) && AssPlugin.fixFaceShieldBullets.Value)
+                        {
+                            // Check if face shield has been hit and reset hits if so.
+                            if (faceShield.Hits > 0)
+                            {
+                                faceShield.Hits = 0;
+                                faceShield.HitsChanged?.Invoke();
+                            }
+                        }
+                    }
+
                     if (item.TryGetItemComponent<RepairableComponent>(out var component))
                     {
                         float maxCap = isArmor ? AssPlugin.MaxDurabilityCap.Value : AssPlugin.weaponMaxDurabilityCap.Value;
