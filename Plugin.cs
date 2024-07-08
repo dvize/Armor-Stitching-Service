@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Reflection;
-using Aki.Reflection.Patching;
+using SPT.Reflection.Patching;
 using BepInEx;
 using BepInEx.Configuration;
 using EFT;
 
 namespace armorMod
 {
-    [BepInPlugin("com.dvize.ASS", "dvize.ASS", "1.6.0")]
+    [BepInPlugin("com.dvize.ASS", "dvize.ASS", "1.7.0")]
     public class AssPlugin : BaseUnityPlugin
     {
         internal static ConfigEntry<Boolean> ArmorServiceMode
